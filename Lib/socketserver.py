@@ -169,6 +169,7 @@ class BaseServer:
     - get_request() -> request, client_address
     - handle_timeout()
     - verify_request(request, client_address)
+    - server_shutdown()
     - server_close()
     - process_request(request, client_address)
     - shutdown_request(request)
@@ -249,6 +250,8 @@ class BaseServer:
         deadlock.
         """
         self.__shutdown_request = True
+        # selector.select() will return immediately
+        self.server_shutdown()
         self.__is_shut_down.wait()
 
     def service_actions(self):
@@ -346,6 +349,14 @@ class BaseServer:
         """
         self.finish_request(request, client_address)
         self.shutdown_request(request)
+
+    def server_shutdown(self):
+        """Called to shutdown the server.
+
+        May be overriden.
+
+        """
+        pass
 
     def server_close(self):
         """Called to clean-up the server.
