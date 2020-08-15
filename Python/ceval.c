@@ -946,6 +946,13 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
 #ifdef DXPAIRS
     int lastopcode = 0;
 #endif
+
+    LONGLONG opcodes[256] = {0};
+    int lastopcode = 0;
+    LARGE_INTEGER lastclock;
+    LARGE_INTEGER clockfrequency;
+    QueryPerformanceFrequency(&clockfrequency);
+
     PyObject **stack_pointer;  /* Next free slot in value stack */
     const _Py_CODEUNIT *next_instr;
     int opcode;        /* Current opcode */
@@ -1471,6 +1478,17 @@ main_loop:
 #endif
         dxp[opcode]++;
 #endif
+
+    if (lastopcode != 0) {
+        LARGE_INTEGER newclock;
+        QueryPerformanceCounter(&newclock);
+        LONGLONG a = (newclock.QuadPart - lastclock.QuadPart) * 10000000;
+        opcodes[lastopcode] += a / clockfrequency.QuadPart;
+    } else {
+        printf("\n\n");
+    }
+    lastopcode = opcode;
+    QueryPerformanceCounter(&lastclock);
 
 #ifdef LLTRACE
         /* Instruction tracing */
@@ -3872,6 +3890,12 @@ exiting:
 
     /* pop frame */
 exit_eval_frame:
+    for (int i = 1; i < 164; ++i) {
+        if (opcodes[i] > 0) {
+            printf("%d: %llu\n", i, opcodes[i]);
+        }
+    }
+
     if (PyDTrace_FUNCTION_RETURN_ENABLED())
         dtrace_function_return(f);
     _Py_LeaveRecursiveCall(tstate);
